@@ -12,20 +12,24 @@ info:
     -------------------------
     返回结构：
 
-      {
-        "code": 错误码,
-        "message": 错误描述
-      }
+        {
+          "code": 错误码,
+          "message": 错误描述
+        }
 
     错误码和错误描述：
 
-      * 正常返回            success                  Success
-      * 不合法 token        access_token_invalid     Access Token Invalid
-      * client_id 不存在    client_id_not_found      Cient ID Not Found
-      * client_secret 错误  client_secret_invalid    Client Secret Invalid
-      * 临时授权码异常      authorized_code_invalid  Authorized Code Invalid
-      * refresh_token 无效  refresh_token_invalid    Refresh Token Invalid
-      * redirect_uri 不匹配 redirect_uri_not_match   Redirect Uri Not Match
+        |-------------------------+-------------------------|
+        | code                    | description             |
+        |-------------------------+-------------------------|
+        | success                 | Success                 |
+        | access_token_invalid    | Access Token Invalid    |
+        | client_id_not_found     | Cient ID Not Found      |
+        | client_secret_invalid   | Client Secret Invalid   |
+        | authorized_code_invalid | Authorized Code Invalid |
+        | refresh_token_invalid   | Refresh Token Invalid   |
+        | redirect_uri_not_match  | Redirect Uri Not Match  |
+        |-------------------------+-------------------------|
 
 externalDocs:
   description: RFC6749
