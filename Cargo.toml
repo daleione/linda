@@ -1,0 +1,7 @@
+[package]
+name = "linda"
+version = "0.1.0"
+authors = ["dalei <guoyunlei@live.com>"]
+edition = "2018"
+
+[dependencies]
