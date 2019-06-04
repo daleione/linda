@@ -1,0 +1,439 @@
+openapi: 3.0.1
+
+info:
+  title: Oauth2 授权
+  version: ""
+  contact:
+    name: Dalei
+    email: guoyunlei@live.com
+  description: |
+    Rust实现的 OAuth2 授权协议
+
+    -------------------------
+    返回结构：
+
+      {
+        "code": 错误码,
+        "message": 错误描述
+      }
+
+    错误码和错误描述：
+
+      * 正常返回            success                  Success
+      * 不合法 token        access_token_invalid     Access Token Invalid
+      * client_id 不存在    client_id_not_found      Cient ID Not Found
+      * client_secret 错误  client_secret_invalid    Client Secret Invalid
+      * 临时授权码异常      authorized_code_invalid  Authorized Code Invalid
+      * refresh_token 无效  refresh_token_invalid    Refresh Token Invalid
+      * redirect_uri 不匹配 redirect_uri_not_match   Redirect Uri Not Match
+
+externalDocs:
+  description: RFC6749
+  url: https://tools.ietf.org/html/rfc6749
+
+security: []
+
+tags:
+  - name: oauth
+    description: 授权相关接口
+  - name: check
+    description: 数据检查
+
+paths:
+  /authorize:
+    get:
+      tags:
+        - oauth
+      summary:  授权页面信息
+      description: | 
+        获取当前client相关信息，提供前端授权时展示信息
+      operationId: get_authorize
+      parameters:
+        - name: client_id
+          description: 和微信appid类似，企业端申请的client_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_uri
+          description: 授权后的302跳转地址
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          description: 透传参数
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: |
+            返回当前用户和对接方的权限和信息
+            可能的错误码有：
+            * client_id_not_found
+            * redirect_uri_not_match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientInfo'
+
+    post:
+      tags:
+        - oauth
+      summary: 进行授权
+      description: | 
+        授权码模式的第一步，授权方构造 authorize 到前端后，用户同意授权后，请求后端处理的接口
+      operationId: post_authorize
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeReq'
+      responses:
+        '200':
+          description: |
+            检查当前redirect_uri正确性，成功后返回302链接
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeRet'
+
+  /oauth2/access_token:
+    post:
+      tags:
+        - oauth
+      summary: 使用code获取access_token
+      description: | 
+        使用code获取access_token
+      operationId: get_access_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessTokenReq'
+      responses:
+        '200':
+          description: 返回用户access_token和其他信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenRet'
+  /oauth2/refresh_token:
+    post:
+      tags:
+        - oauth
+      summary: 使用refresh_token刷新access_token
+      description: | 
+        使用refresh_token刷新access_token
+      operationId: refresh_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenReq'
+      responses:
+        '200':
+          description: 返回当前用户和对接方的权限和信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenDetailRet'
+
+  /oauth2/check_token:
+    post:
+      tags:
+        - check
+      summary: 检查access_token的有效性
+      description: | 
+        检查access_token的有效性
+      operationId: check_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenCheckReq'
+      responses:
+        '200':
+          description: 返回当前 access_token 是否有效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommonRet'
+
+  /oauth2/token_info:
+    post:
+      tags:
+        - check
+      summary: 返回access_token的相关信息
+      description: | 
+        返回access_token的相关信息
+      operationId: token_info
+      requestBody:
+        content:
+          application/json:
+            schema:
+                $ref: '#/components/schemas/TokenCheckReq'
+      responses:
+        '200':
+          description: 返回当前access_token对应的 用户/权限 等信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenDetailRet'
+
+  /oauth2/revoke:
+    post:
+      tags:
+        - check
+      summary: 撤销access_token
+      description: | 
+        撤销access_token
+      operationId: revoke_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - access_token
+              properties:
+                access_token:
+                  type: string
+                  description:  access token
+                  example: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      responses:
+        '200':
+          description: 将当前access_token失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommonRet'
+
+components:
+  schemas:
+    ClientInfo:
+      required:
+        - app_name
+        - client_id
+        - redirect_uri
+        - description
+        - scope_descriptions
+        - state
+      properties:
+        app_name:
+          type: string
+          description: 接入方名称
+          example: "pornhub"
+        client_id:
+          type: string
+          description: 接入放client_id
+          example: "xxxxxxxxxxxxxxxx"
+        redirect_uri:
+          type: string
+          description: 接入方回调地址
+        scope_descriptions:
+          type: array
+          items:
+            type: string
+            example: 读取你的个人信息
+        state:
+          type: string
+          description: 透传参数
+        description:
+          type: string
+          description: 当前应用描述
+    AuthorizeReq:
+      required:
+        - client_id
+        - redirect_uri
+        - response_type
+        - lifetime
+        - state
+        - user_id
+      properties:
+        client_id:
+          type: string
+          description: 和微信appid类似，企业端申请的client_id
+          example: xxxxxxxxxxxxxxxxxxxx
+        redirect_uri:
+          type: string
+          description: 授权后的302跳转地址
+          example: https://kepler.live
+        response_type:
+          type: string
+          description: 授权码模式，固定值为code
+          example: code
+        lifetime:
+          type: string
+          description: 授权时长
+          enum:
+            - "86400"
+            - "604800"
+            - "2592000"
+            - "31536000"
+        state:
+          type: string
+          description: 透传参数
+          example: "123"
+        user_id:
+          type: string
+          description: 用户ID
+          example: "123456"
+    AuthorizeRet:
+      required:
+        - code
+        - redirect_uri
+      properties:
+        code:
+          type: string
+          description: 错误码
+          example: success
+        redirect_uri:
+          type: string
+          description: 接入方回调地址
+          example: "http://kepler.live/oauth2?code=随机字符串&state=随机字符串"
+    AccessTokenReq:
+      required:
+        - client_id
+        - client_secret
+        - grant_type
+        - code
+      properties:
+        client_id:
+          type: string
+          description: 和微信appid类似，企业端申请的client_id
+          example: xxxxxxx
+        client_secret:
+          type: string
+          description:  client_id对应的密码，需要保密
+          example: secret_pwd
+        grant_type:
+          type: string
+          description: 限定为 `authorization_code`
+          example: authorization_code
+        code:
+          type: string
+          description: 授权时拿到的code, 一次性使用, 且有效期为5分钟
+          example: xxxxxxx
+    AccessTokenRet:
+      required:
+        - code
+        - message 
+        - access_token
+        - expires_in
+        - refresh_expires_in
+        - refresh_token
+        - scopes
+      properties:
+        code:
+          type: string
+          description: 错误码
+          example: success
+        message:
+          type: string
+          description: 错误描述
+          example: "ok"
+        access_token:
+          type: string
+          description: 授权token, 用于调用其他接口使用
+          example: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        expires_in:
+          type: integer
+          description: access_token 过期时间
+        refresh_expires_in:
+          type: integer
+          description: refresh_token 过期时间
+          example: 31536000
+        refresh_token:
+          type: string
+          description: 用于access_token刷新使用
+          example: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        scopes:
+          type: array
+          items:
+            type: string
+            example: "userinfo"
+    RefreshTokenReq:
+      required:
+        - client_id
+        - refresh_token
+        - grant_type
+      properties:
+        client_id:
+          type: string
+          description: 和微信appid类似，企业端申请的client_id
+          example: "xxxxxxxxxxxx"
+        refresh_token:
+          type: string
+          description:  跟 access token 对应的 refresh_token
+          example: "xxxxxxxxxxxxx"
+        grant_type:
+          type: string
+          description: 限定为 `refresh_token`
+          example: refresh_token
+    TokenDetailRet:
+      required:
+        - code
+        - message
+        - access_token
+        - expires_in
+        - refresh_expires_in
+        - refresh_token
+        - scopes
+      properties:
+        code:
+          type: string
+          description: 错误码
+          example: success
+        message:
+          type: string
+          description: 错误描述
+          example: "ok"
+        access_token:
+          type: string
+          description: 授权token, 用于调用其他接口使用
+          example: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        expires_in:
+          type: integer
+          description: access_token 过期时间
+        refresh_expires_in:
+          type: integer
+          description: refresh_token 过期时间
+          example: 31536000
+        refresh_token:
+          type: string
+          description: 用于access_token刷新使用
+          example: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        scopes:
+          type: array
+          items:
+            type: string
+            example: "userinfo"
+    TokenCheckReq:
+      required:
+        - client_id
+        - access_token
+      properties:
+        client_id:
+          type: string
+          description: 和微信appid类似，企业端申请的client_id
+          example: xxxxxxxxxxxxxxxx
+        access_token:
+          type: string
+          description:  access token
+          example: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    CommonRet:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: 错误码
+          example: success
+        message:
+          type: string
+          description: 错误描述
+          example: "ok"
+
